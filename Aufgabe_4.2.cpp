@@ -4,6 +4,18 @@
 #include <array>
 #include <iostream>
 
+#include <QApplication>
+#include <QWidget>
+#include <QPushButton>
+#include <QComboBox>
+#include <QtWidgets/QDoubleSpinBox>
+#include <QLayout>
+#include <QtWidgets/QFileDialog>
+#include <QDebug>
+
+enum Mode {normierterMittelwertsfilter, gaussfilter, xDerivative, yDerivative, laplace, sobelInX, sobelInY, gradientenbetrag, cannyEdgeDetector};
+cv::Mat A, Result;
+
 cv::Mat shrink_image(cv::Mat& input)
 {
     cv::Mat output;
@@ -59,55 +71,110 @@ cv::Mat convolution(const cv::Mat& input, const cv::Mat& filter)
     return output;
 }
 
-
-int main()
+void loadImage(std::string path)
 {
-    auto A = cv::imread("E:\\FH-Aachen\\5.\ Semerster\\Bildverarbeitung\\BV_Bilder\\Aufgabe4.jpg");
-
-    cv::cvtColor(A, A, CV_BGR2GRAY);
+    A = cv::imread(path, cv::IMREAD_GRAYSCALE);
     A = shrink_image(A);
+
+    cv::namedWindow("Display Image", cv::WINDOW_AUTOSIZE );
+    cv::imshow("Display Image", A);
+}
+
+void calc(Mode modus, double gamma = 0)
+{
+    qDebug() << modus;
+
+    std::string title;
+    cv::Mat xGrad = (cv::Mat_<double>(3, 1) << 1, -1, 0);
+    cv::Mat yGrad = (cv::Mat_<double>(1, 3) << 0, 1, -1);
+    cv::Mat sobelX, sobelY;
+
+    switch (modus) {
+    case normierterMittelwertsfilter:
+        title = "Normierter Mittelwertsfilter";
+        //DONE: Normierter Mittelwertsfilter mit Eingabe der Filtergroesse
+        cv::blur(A, Result, { 3, 3 });
+        break;
+    case gaussfilter:
+        cv::equalizeHist(A, Result);
+        title = "Gaussfilter";
+        cv::GaussianBlur(A, Result, {3, 3}, 3);
+        break;
+    case xDerivative:
+        title = "x Gradient";
+        cv::filter2D(A, Result, -1, xGrad, { -1, -1 }, 0, cv::BORDER_DEFAULT);
+        break;
+    case yDerivative:
+        title = "y Gradient";
+        cv::filter2D(A, Result, -1, yGrad, { -1, -1 }, 0, cv::BORDER_DEFAULT);
+        break;
+    case laplace:
+        cv::Laplacian(A, Result, -1);
+        break;
+    case sobelInX:
+        cv::Sobel(A, Result, -1, 1, 0);
+        break;
+    case sobelInY:
+        cv::Sobel(A, Result, -1, 0, 1);
+        break;
+    case gradientenbetrag:
+        cv::Sobel(A, sobelX, -1, 1, 0);
+        cv::Sobel(A, sobelY, -1, 0, 1);
+        Result = sobelX.mul(sobelX) + sobelY.mul(sobelY);
+        Result.convertTo(Result, CV_64F);
+        cv::sqrt(Result, Result);
+        break;
+    case cannyEdgeDetector:
+        cv::Canny(A, Result, 1, 1);
+        break;
+    }
+    cv::imshow(title, Result);
+}
+
+
+
+int main(int argc, char** argv)
+{
+    QApplication app(argc, argv);
+
+
+    loadImage("E:\\FH-Aachen\\5.\ Semerster\\Bildverarbeitung\\BV_Bilder\\Aufgabe4.jpg");
+
+    QWidget wid;
+    QComboBox* combobox = new QComboBox();
+    combobox->addItem("Normierter Mittelwertsfilter");
+    combobox->addItem("Gaussfilter");
+    combobox->addItem("1. x-Ableitung");
+    combobox->addItem("1. y-Ableitung");
+    combobox->addItem("Laplace");
+    combobox->addItem("Sobel in x");
+    combobox->addItem("Sobel in y");
+    combobox->addItem("Gradientenbetrag nach Sobel");
+    combobox->addItem("Canny Edge Detector");
+    QDoubleSpinBox* gammaVal = new QDoubleSpinBox();
+    QPushButton* button = new QPushButton("OK");
+    QPushButton* loadButton = new QPushButton("Load");
+    QVBoxLayout* vLayout1  = new QVBoxLayout();
+    QHBoxLayout* hLayout1  = new QHBoxLayout();
+    hLayout1->addWidget(gammaVal);
+    hLayout1->addWidget(button);
+    vLayout1->addWidget(loadButton);
+    vLayout1->addWidget(combobox);
+    vLayout1->addLayout(hLayout1);
+    wid.setLayout(vLayout1);
+    wid.show();
+
+    QObject::connect(button, &QPushButton::clicked, [combobox, gammaVal](){calc((Mode)combobox->currentIndex(), gammaVal->value());});
+    QObject::connect(loadButton, &QPushButton::clicked, []()
+    {
+        QFileDialog dia;
+        loadImage(dia.getOpenFileUrl().toString().remove("file:///").toStdString());
+    });
 
     cv::Mat h1 = (cv::Mat_<double>(3, 3) << 1, 1, 1, 1, -8, 1, 1, 1, 1);
     constexpr double h2FilterFaktor = 1.0 / 16;
     cv::Mat h2 = (cv::Mat_<double>(3, 3) << 1, 2, 1, 2, 4, 2, 1, 2, 1) * h2FilterFaktor;
     cv::Mat h3 = (cv::Mat_<double>(3, 3) << 1, 2, 1, 0, 0, 0, -1, -2, -1);
 
-
-    cv::Mat xGrad = (cv::Mat_<double>(3, 1) << 1, -1, 0);
-    cv::Mat yGrad = (cv::Mat_<double>(1, 3) << 0, 1, -1);
-
-    cv::Mat blur, filter2, gauss, lapla, sobelX, sobelY, canny;
-    //DONE: Normierter Mittelwertsfilter mit Eingabe der Filtergr??e
-    cv::blur(A, blur, { 3, 3 });
-    //imshow("blur", blur);
-    //DONE: Gaussian
-    cv::GaussianBlur(A, gauss, {3, 3}, 3);
-    //imshow("gaussian", gauss);
-    //TODO: 1.te x-Ableitung als Vorwaertsgradient
-    //TODO: 1.te y-Ableitung als Vorwaertsgradient
-    cv::filter2D(A, filter2, -1, xGrad, { -1, -1 }, 0, cv::BORDER_DEFAULT);
-    imshow("ocvConv", filter2);
-    cv::Laplacian(A, lapla, -1);
-    //imshow("laplacian", lapla);
-    cv::Sobel(A, sobelX, -1, 1, 0);
-    imshow("sobelX", sobelX);
-    cv::Sobel(A, sobelY, -1, 0, 1);
-    imshow("sobelY", sobelY);
-    //cv::Canny(image, canny, 1, 1);
-    //imshow("canny", canny);
-    //TODO: Gradientenbetrag nach Sobel, Formel auf Folie 7-49
-    cv::Mat grad = sobelX.mul(sobelX) + sobelY.mul(sobelY);
-    grad.convertTo(grad, CV_64F);
-    cv::sqrt(grad, grad);
-    cv::imshow("Gradientenbetrag", grad);
-
-
-
-
-
-    cv::namedWindow("Display Image", cv::WINDOW_AUTOSIZE );
-    cv::imshow("Display Image", A);
-
-    cv::waitKey(0);
-    return 0;
+    return app.exec();
 }
