@@ -114,10 +114,9 @@ cv::Mat histogramStreching(cv::Mat& input)
     return gammaCorrection(input, 1.0);
 }
 
-void load()
+void loadImage(std::string path)
 {
-    QFileDialog dia;
-    A = cv::imread(dia.getOpenFileUrl().toString().remove("file:///").toStdString(), cv::IMREAD_GRAYSCALE);
+    A = cv::imread(path, cv::IMREAD_GRAYSCALE);
     A = shrink_image(A);
 }
 
@@ -160,26 +159,8 @@ void calc(Mode modus, double gamma = 0, QBarSeries* chart = nullptr)
 
 int main(int32_t argc, char** argv)
 {
-    A = cv::imread("E:\\FH-Aachen\\5.\ Semerster\\Bildverarbeitung\\BV_Bilder\\Aufgabe3.jpg", cv::IMREAD_GRAYSCALE);
+    loadImage("E:\\FH-Aachen\\5.\ Semerster\\Bildverarbeitung\\BV_Bilder\\Aufgabe3.jpg");
 
-    //cv::cvtColor(A, A, CV_BGR2GRAY);
-    A = shrink_image(A);
-
-
-//    auto histogram = makeHist(A);
-//    auto normHistogram = makeNormalisedHist(histogram);
-//    auto cumHistogram = makeCumulativeHist(normHistogram);
-
-//    cv::Mat B(histogramStreching(A));
-//    cv::Mat C(gammaCorrection(A, 5));
-//    cv::Mat D;
-//    cv::equalizeHist(A, D);
-
-//    cv::namedWindow("Display Image", cv::WINDOW_AUTOSIZE );
-//    cv::imshow("Display Image", A);
-//    cv::imshow("HistStrecht Image", B);
-//    cv::imshow("Gamma Image", C);
-//    cv::imshow("equalizeHist Image", D);
 
     auto histogram = makeHist(A);
     QApplication app(argc, argv);
@@ -226,7 +207,11 @@ int main(int32_t argc, char** argv)
     wid.show();
 
     QObject::connect(button, &QPushButton::clicked, [combobox, gammaVal, seriesResult](){calc((Mode)combobox->currentIndex(), gammaVal->value(), seriesResult);});
-    QObject::connect(loadButton, &QPushButton::clicked, [](){load();});
+    QObject::connect(loadButton, &QPushButton::clicked, []()
+    {
+        QFileDialog dia;
+        loadImage(dia.getOpenFileUrl().toString().remove("file:///").toStdString());
+    });
     //cv::waitKey(0);
     //return 0;
     return app.exec();
