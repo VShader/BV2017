@@ -136,47 +136,53 @@ void calc(Mode modus, double gamma = 0)
     switch (modus) {
     case normierterMittelwertsfilter:
         title = "Normierter Mittelwertsfilter";
+        A.convertTo(A, CV_8UC1);
         //DONE: Normierter Mittelwertsfilter mit Eingabe der Filtergroesse
         cv::blur(A, Result, { 3, 3 });
         break;
     case gaussfilter:
+        A.convertTo(A, CV_8UC1);
         cv::equalizeHist(A, Result);
         title = "Gaussfilter";
         cv::GaussianBlur(A, Result, {3, 3}, 3);
         break;
     case xDerivative:
         title = "x Gradient";
+        A.convertTo(A, CV_64F);
         cv::filter2D(A, Result, -1, xGrad, { -1, -1 }, 0, cv::BORDER_DEFAULT);
         break;
     case yDerivative:
         title = "y Gradient";
+        A.convertTo(A, CV_64F);
         cv::filter2D(A, Result, -1, yGrad, { -1, -1 }, 0, cv::BORDER_DEFAULT);
         break;
     case laplace:
         cv::Laplacian(A, Result, -1);
         break;
     case sobelInX:
-        cv::Sobel(A, Result, -1, 1, 0);
-        break;
-    case sobelInY:
+        A.convertTo(A, CV_64F);
         cv::Sobel(A, Result, -1, 0, 1);
         break;
+    case sobelInY:
+        A.convertTo(A, CV_64F);
+        cv::Sobel(A, Result, -1, 1, 0);
+        break;
     case gradientenbetrag:
+
         cv::Sobel(A, sobelX, -1, 1, 0);
         cv::Sobel(A, sobelY, -1, 0, 1);
         Result = sobelX.mul(sobelX) + sobelY.mul(sobelY);
-        Result.convertTo(Result, CV_64F);
+        //Result.convertTo(Result, CV_64F);
         cv::sqrt(Result, Result);
         break;
     case cannyEdgeDetector:
+        A.convertTo(A, CV_8UC1);
         cv::Canny(A, Result, 1, 1);
         break;
     }
 
-    cv::Mat with;
-    with = histogramStreching(Result);
+    Result = histogramStreching(Result);
     cv::imshow(title, Result);
-    cv::imshow(title + "+", with);
 }
 
 

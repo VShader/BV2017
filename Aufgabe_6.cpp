@@ -24,9 +24,7 @@ cv::Mat shrink_image(cv::Mat& input)
 
 int main()
 {
-    auto A = cv::imread("E:\\FH-Aachen\\5.\ Semerster\\Bildverarbeitung\\BV_Bilder\\Aufgabe5.jpg");
-    auto Orginal = cv::imread("E:\\FH-Aachen\\5.\ Semerster\\Bildverarbeitung\\BV_Bilder\\Aufgabe5-Orginal.jpg");
-    std::vector<cv::Mat> imgs, imgs2;
+    std::vector<cv::Mat> imgs;
     std::string path = "E:\\FH-Aachen\\5.\ Semerster\\Bildverarbeitung\\BV_Bilder\\Aufgabe6-";
     for( uint8_t i=1; i<8; ++i)
     {
