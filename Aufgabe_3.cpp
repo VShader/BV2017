@@ -114,13 +114,28 @@ cv::Mat histogramStreching(cv::Mat& input)
     return gammaCorrection(input, 1.0);
 }
 
-void loadImage(std::string path)
+void loadImage(std::string path, QChart* chart)
 {
     A = cv::imread(path, cv::IMREAD_GRAYSCALE);
     A = shrink_image(A);
+
+    auto newHist = makeHist(A);
+    QBarSet *set0 = new QBarSet("Grayval");
+    set0->setColor(Qt::black);
+    for(uint16_t i=0; i<newHist.size(); ++i)
+    {
+        set0->insert(i, newHist[i]);
+    }
+    QBarSeries *series = new QBarSeries();
+    series->append(set0);
+    chart->removeAllSeries();
+    chart->addSeries(series);
+
+    cv::namedWindow("Display Image", cv::WINDOW_AUTOSIZE );
+    cv::imshow("Display Image", A);
 }
 
-void calc(Mode modus, double gamma = 0, QBarSeries* chart = nullptr)
+void calc(Mode modus, double gamma = 0, QChart* chart = nullptr)
 {
     qDebug() << modus;
     auto histogram = makeHist(A);
@@ -145,48 +160,51 @@ void calc(Mode modus, double gamma = 0, QBarSeries* chart = nullptr)
         title = "Gamma Image";
         break;
     }
+
     auto newHist = makeHist(Result);
+    QBarSet *set0 = new QBarSet("Grayval");
+    set0->setColor(Qt::black);
     for(uint16_t i=0; i<newHist.size(); ++i)
     {
-        set->insert(i, newHist[i]);
+        set0->insert(i, newHist[i]);
     }
-    chart->clear();
-    chart->append(set);
-    cv::namedWindow("Display Image", cv::WINDOW_AUTOSIZE );
-    cv::imshow("Display Image", A);
+    QBarSeries *series = new QBarSeries();
+    series->append(set0);
+    chart->removeAllSeries();
+    chart->addSeries(series);
     cv::imshow(title, Result);
 }
 
 int main(int32_t argc, char** argv)
 {
-    loadImage("E:\\FH-Aachen\\5.\ Semerster\\Bildverarbeitung\\BV_Bilder\\Aufgabe3.jpg");
-
-
-    auto histogram = makeHist(A);
+    //auto histogram = makeHist(A);
     QApplication app(argc, argv);
-    QBarSet *set0 = new QBarSet("Grayval");
-    set0->setColor(Qt::black);
-    for(int i=0; i< histogram.size(); ++i)
-        set0->insert(i, histogram[i]);
-    QBarSeries *series = new QBarSeries();
-    series->append(set0);
+
+//    QBarSet *set0 = new QBarSet("Grayval");
+//    set0->setColor(Qt::black);
+//    for(int i=0; i< histogram.size(); ++i)
+//        set0->insert(i, histogram[i]);
+//    QBarSeries *series = new QBarSeries();
+//    series->append(set0);
 
     QChart *chart = new QChart();
-    chart->addSeries(series);
+    //chart->addSeries(series);
     chart->setTitle("Orginal Image");
     chart->setAnimationOptions(QChart::SeriesAnimations);
     QChartView *chartView = new QChartView(chart);
     chartView->setRenderHint(QPainter::Antialiasing);
-    chartView->show();
+    //chartView->show();
 
-    QBarSeries *seriesResult = new QBarSeries();
+    //QBarSeries *seriesResult = new QBarSeries();
     QChart *chartResult = new QChart();
-    chartResult->addSeries(seriesResult);
+//    chartResult->addSeries(seriesResult);
     chartResult->setTitle("Result Image");
     chartResult->setAnimationOptions(QChart::SeriesAnimations);
     QChartView *chartViewResult = new QChartView(chartResult);
     chartViewResult->setRenderHint(QPainter::Antialiasing);
-    chartViewResult->show();
+    //chartViewResult->show();
+
+    loadImage("E:\\FH-Aachen\\5.\ Semerster\\Bildverarbeitung\\BV_Bilder\\Aufgabe3.jpg", chart);
 
     QWidget wid;
     QComboBox* combobox = new QComboBox();
@@ -196,21 +214,27 @@ int main(int32_t argc, char** argv)
     QSpinBox* gammaVal = new QSpinBox();
     QPushButton* button = new QPushButton("OK");
     QPushButton* loadButton = new QPushButton("Load");
-    QVBoxLayout* vLayout  = new QVBoxLayout();
-    QHBoxLayout* hLayout  = new QHBoxLayout();
-    hLayout->addWidget(gammaVal);
-    hLayout->addWidget(button);
-    vLayout->addWidget(loadButton);
-    vLayout->addWidget(combobox);
-    vLayout->addLayout(hLayout);
-    wid.setLayout(vLayout);
+    QVBoxLayout* vLayout1  = new QVBoxLayout();
+    QHBoxLayout* hLayout1  = new QHBoxLayout();
+    QVBoxLayout* vLayout2  = new QVBoxLayout();
+    QHBoxLayout* hLayout2  = new QHBoxLayout();
+    hLayout1->addWidget(gammaVal);
+    hLayout1->addWidget(button);
+    vLayout1->addWidget(loadButton);
+    vLayout1->addWidget(combobox);
+    vLayout1->addLayout(hLayout1);
+    vLayout2->addWidget(chartView);
+    vLayout2->addWidget(chartViewResult);
+    hLayout2->addLayout(vLayout1);
+    hLayout2->addLayout(vLayout2);
+    wid.setLayout(hLayout2);
     wid.show();
 
-    QObject::connect(button, &QPushButton::clicked, [combobox, gammaVal, seriesResult](){calc((Mode)combobox->currentIndex(), gammaVal->value(), seriesResult);});
-    QObject::connect(loadButton, &QPushButton::clicked, []()
+    QObject::connect(button, &QPushButton::clicked, [combobox, gammaVal, chartResult](){calc((Mode)combobox->currentIndex(), gammaVal->value(), chartResult);});
+    QObject::connect(loadButton, &QPushButton::clicked, [chart]()
     {
         QFileDialog dia;
-        loadImage(dia.getOpenFileUrl().toString().remove("file:///").toStdString());
+        loadImage(dia.getOpenFileUrl().toString().remove("file:///").toStdString(), chart);
     });
     //cv::waitKey(0);
     //return 0;
