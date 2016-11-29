@@ -10,7 +10,9 @@
 #include <QtCharts/QBarCategoryAxis>
 #include <QPushButton>
 #include <QComboBox>
+#include <QSpinBox>
 #include <QLayout>
+#include <QtWidgets/QFileDialog>
 #include <QDebug>
 
 QT_CHARTS_USE_NAMESPACE
@@ -112,6 +114,12 @@ cv::Mat histogramStreching(cv::Mat& input)
     return gammaCorrection(input, 1.0);
 }
 
+void load()
+{
+    QFileDialog dia;
+    A = cv::imread(dia.getOpenFileUrl().toString().remove("file:///").toStdString(), cv::IMREAD_GRAYSCALE);
+    A = shrink_image(A);
+}
 
 void calc(Mode modus, double gamma = 0, QBarSeries* chart = nullptr)
 {
@@ -122,9 +130,6 @@ void calc(Mode modus, double gamma = 0, QBarSeries* chart = nullptr)
 
     std::string title;
     QBarSet *set = new QBarSet("Grayval");
-
-
-
 
 
     switch (modus) {
@@ -155,9 +160,9 @@ void calc(Mode modus, double gamma = 0, QBarSeries* chart = nullptr)
 
 int main(int32_t argc, char** argv)
 {
-    A = cv::imread("E:\\FH-Aachen\\5.\ Semerster\\Bildverarbeitung\\BV_Bilder\\Aufgabe3.jpg");
+    A = cv::imread("E:\\FH-Aachen\\5.\ Semerster\\Bildverarbeitung\\BV_Bilder\\Aufgabe3.jpg", cv::IMREAD_GRAYSCALE);
 
-    cv::cvtColor(A, A, CV_BGR2GRAY);
+    //cv::cvtColor(A, A, CV_BGR2GRAY);
     A = shrink_image(A);
 
 
@@ -179,6 +184,7 @@ int main(int32_t argc, char** argv)
     auto histogram = makeHist(A);
     QApplication app(argc, argv);
     QBarSet *set0 = new QBarSet("Grayval");
+    set0->setColor(Qt::black);
     for(int i=0; i< histogram.size(); ++i)
         set0->insert(i, histogram[i]);
     QBarSeries *series = new QBarSeries();
@@ -192,19 +198,35 @@ int main(int32_t argc, char** argv)
     chartView->setRenderHint(QPainter::Antialiasing);
     chartView->show();
 
+    QBarSeries *seriesResult = new QBarSeries();
+    QChart *chartResult = new QChart();
+    chartResult->addSeries(seriesResult);
+    chartResult->setTitle("Result Image");
+    chartResult->setAnimationOptions(QChart::SeriesAnimations);
+    QChartView *chartViewResult = new QChartView(chartResult);
+    chartViewResult->setRenderHint(QPainter::Antialiasing);
+    chartViewResult->show();
+
     QWidget wid;
     QComboBox* combobox = new QComboBox();
     combobox->addItem("Histogramm Stretching");
     combobox->addItem("Histogramm Linearisierung");
     combobox->addItem("Gammakorrektur");
+    QSpinBox* gammaVal = new QSpinBox();
     QPushButton* button = new QPushButton("OK");
-    QVBoxLayout* layout  = new QVBoxLayout();
-    layout->addWidget(combobox);
-    layout->addWidget(button);
-    wid.setLayout(layout);
+    QPushButton* loadButton = new QPushButton("Load");
+    QVBoxLayout* vLayout  = new QVBoxLayout();
+    QHBoxLayout* hLayout  = new QHBoxLayout();
+    hLayout->addWidget(gammaVal);
+    hLayout->addWidget(button);
+    vLayout->addWidget(loadButton);
+    vLayout->addWidget(combobox);
+    vLayout->addLayout(hLayout);
+    wid.setLayout(vLayout);
     wid.show();
 
-    QObject::connect(button, &QPushButton::clicked, [combobox, series](){calc((Mode)combobox->currentIndex(), 5, series);});
+    QObject::connect(button, &QPushButton::clicked, [combobox, gammaVal, seriesResult](){calc((Mode)combobox->currentIndex(), gammaVal->value(), seriesResult);});
+    QObject::connect(loadButton, &QPushButton::clicked, [](){load();});
     //cv::waitKey(0);
     //return 0;
     return app.exec();
