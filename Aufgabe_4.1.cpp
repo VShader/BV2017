@@ -13,25 +13,6 @@ cv::Mat shrink_image(cv::Mat& input)
     return output;
 }
 
-std::array<uint32_t, 256> makeHist(cv::Mat& input)
-{
-    //check if grayscale, if not convert.
-    if(input.dims > 2)
-        cv::cvtColor(input, input, CV_BGR2GRAY);
-
-    std::array<uint32_t, 256> hist;
-    hist.fill(0);
-    for (int colIt = 0; colIt < input.cols; colIt++)
-    {
-        for (int rowIt = 0; rowIt < input.rows; rowIt++)
-        {
-            auto& pixel = input.at<double>(rowIt, colIt);
-            hist[pixel] += 1;
-        }
-    }
-    return hist;
-}
-
 cv::Mat gammaCorrection(cv::Mat& input, const double gamma)
 {
     cv::Mat output(input.clone());
@@ -39,14 +20,16 @@ cv::Mat gammaCorrection(cv::Mat& input, const double gamma)
     constexpr uint8_t wmin = 0;
     constexpr uint8_t wmax = 255;
 
-    auto histogram = makeHist(input);
-
-    uint8_t gmin = 255;
-    uint8_t gmax = 0;
-    for(auto item : histogram)
+    double gmin = 255;
+    double gmax = 0;
+    for (int colIt = 0; colIt < output.cols; colIt++)
     {
-        gmin = item < gmin ? item : gmin;
-        gmax = item > gmax ? item : gmax;
+        for (int rowIt = 0; rowIt < output.rows; rowIt++)
+        {
+            auto& pixel = output.at<double>(rowIt, colIt);
+            gmin = pixel < gmin ? pixel : gmin;
+            gmax = pixel > gmax ? pixel : gmax;
+        }
     }
 
     for (int colIt = 0; colIt < output.cols; colIt++)
@@ -115,9 +98,9 @@ cv::Mat convolution(const cv::Mat& input, const cv::Mat& filter)
 
 
 
-    double min, max;
-    cv::minMaxIdx(output, &min, &max);
-    cv::convertScaleAbs(output, output, 255 / max);
+//    double min, max;
+//    cv::minMaxIdx(output, &min, &max);
+//    cv::convertScaleAbs(output, output, 255 / max);
     output = histogramStreching(output);
     return output;
 }

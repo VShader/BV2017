@@ -8,7 +8,7 @@
 #include <QWidget>
 #include <QPushButton>
 #include <QComboBox>
-#include <QtWidgets/QDoubleSpinBox>
+#include <QtWidgets/QLineEdit>
 #include <QLayout>
 #include <QtWidgets/QFileDialog>
 #include <QDebug>
@@ -24,6 +24,49 @@ cv::Mat shrink_image(cv::Mat& input)
     cv::resize(input, output, cv::Size( input.cols*shrinkValue, input.rows*shrinkValue ));
     return output;
 }
+
+cv::Mat gammaCorrection(cv::Mat& input, const double gamma)
+{
+    cv::Mat output(input.clone());
+    output.convertTo(output, CV_64F);
+    constexpr uint8_t wmin = 0;
+    constexpr uint8_t wmax = 255;
+
+    double gmin = 255;
+    double gmax = 0;
+    for (int colIt = 0; colIt < output.cols; colIt++)
+    {
+        for (int rowIt = 0; rowIt < output.rows; rowIt++)
+        {
+            auto& pixel = output.at<double>(rowIt, colIt);
+            gmin = pixel < gmin ? pixel : gmin;
+            gmax = pixel > gmax ? pixel : gmax;
+        }
+    }
+
+    for (int colIt = 0; colIt < output.cols; colIt++)
+    {
+        for (int rowIt = 0; rowIt < output.rows; rowIt++)
+        {
+            auto& pixel = output.at<double>(rowIt, colIt);
+
+            double tmpVal = (wmax - wmin) * std::pow((double)(pixel - gmin)/(double)(gmax - gmin), gamma) + wmin;
+            pixel = tmpVal;
+            //pixel = gammaCorrection(pixel, 0, 255, wmin, wmax, gamma);
+        }
+    }
+
+    double min, max;
+    cv::minMaxIdx(output, &min, &max);
+    cv::convertScaleAbs(output, output, 255 / max);
+    return output;
+}
+
+cv::Mat histogramStreching(cv::Mat& input)
+{
+    return gammaCorrection(input, 1.0);
+}
+
 
 double conv(const cv::Mat& ROI, const cv::Mat& filter)
 {
@@ -65,9 +108,10 @@ cv::Mat convolution(const cv::Mat& input, const cv::Mat& filter)
 
 
 
-    double min, max;
-    cv::minMaxIdx(output, &min, &max);
-    cv::convertScaleAbs(output, output, 255 / max);
+//    double min, max;
+//    cv::minMaxIdx(output, &min, &max);
+//    cv::convertScaleAbs(output, output, 255 / max);
+    output = histogramStreching(output);
     return output;
 }
 
@@ -128,7 +172,11 @@ void calc(Mode modus, double gamma = 0)
         cv::Canny(A, Result, 1, 1);
         break;
     }
+
+    cv::Mat with;
+    with = histogramStreching(Result);
     cv::imshow(title, Result);
+    cv::imshow(title + "+", with);
 }
 
 
@@ -151,7 +199,7 @@ int main(int argc, char** argv)
     combobox->addItem("Sobel in y");
     combobox->addItem("Gradientenbetrag nach Sobel");
     combobox->addItem("Canny Edge Detector");
-    QDoubleSpinBox* gammaVal = new QDoubleSpinBox();
+    QLineEdit* gammaVal = new QLineEdit();
     QPushButton* button = new QPushButton("OK");
     QPushButton* loadButton = new QPushButton("Load");
     QVBoxLayout* vLayout1  = new QVBoxLayout();
@@ -164,17 +212,12 @@ int main(int argc, char** argv)
     wid.setLayout(vLayout1);
     wid.show();
 
-    QObject::connect(button, &QPushButton::clicked, [combobox, gammaVal](){calc((Mode)combobox->currentIndex(), gammaVal->value());});
+    QObject::connect(button, &QPushButton::clicked, [combobox, gammaVal](){calc((Mode)combobox->currentIndex(), gammaVal->text().toDouble());});
     QObject::connect(loadButton, &QPushButton::clicked, []()
     {
         QFileDialog dia;
         loadImage(dia.getOpenFileUrl().toString().remove("file:///").toStdString());
     });
-
-    cv::Mat h1 = (cv::Mat_<double>(3, 3) << 1, 1, 1, 1, -8, 1, 1, 1, 1);
-    constexpr double h2FilterFaktor = 1.0 / 16;
-    cv::Mat h2 = (cv::Mat_<double>(3, 3) << 1, 2, 1, 2, 4, 2, 1, 2, 1) * h2FilterFaktor;
-    cv::Mat h3 = (cv::Mat_<double>(3, 3) << 1, 2, 1, 0, 0, 0, -1, -2, -1);
 
     return app.exec();
 }
