@@ -10,7 +10,7 @@
 #include <QtCharts/QBarCategoryAxis>
 #include <QPushButton>
 #include <QComboBox>
-#include <QSpinBox>
+#include <QtWidgets/QDoubleSpinBox>
 #include <QLayout>
 #include <QtWidgets/QFileDialog>
 #include <QDebug>
@@ -211,7 +211,7 @@ int main(int32_t argc, char** argv)
     combobox->addItem("Histogramm Stretching");
     combobox->addItem("Histogramm Linearisierung");
     combobox->addItem("Gammakorrektur");
-    QSpinBox* gammaVal = new QSpinBox();
+    QDoubleSpinBox* gammaVal = new QDoubleSpinBox();
     QPushButton* button = new QPushButton("OK");
     QPushButton* loadButton = new QPushButton("Load");
     QVBoxLayout* vLayout1  = new QVBoxLayout();
