@@ -3,13 +3,17 @@
 #include <array>
 #include <QApplication>
 #include <QWidget>
-#include <QBarset>
-#include <QBarSeries>
-#include <QChart>
+#include <QtCharts/QChartView>
+#include <QtCharts/QBarSeries>
+#include <QtCharts/QBarSet>
+#include <QtCharts/QLegend>
+#include <QtCharts/QBarCategoryAxis>
 #include <QPushButton>
 #include <QComboBox>
 #include <QLayout>
 #include <QDebug>
+
+QT_CHARTS_USE_NAMESPACE
 
 enum Mode : uint8_t {stretching, linearisation, gammacorrection};
 cv::Mat A, Result;
@@ -66,23 +70,6 @@ std::array<double, 256> makeCumulativeHist(std::array<double, 256>& normalisedHi
     return output;
 }
 
-//void histStretch()
-//{
-//    constexpr uchar wmin = 0;
-//    constexpr uchar wmax = 255;
-
-//    auto hist = makeHist();
-//    const auto minMax = getMinMax(hist);
-
-//    for (int colIt = 0; colIt < this->cols; colIt++)
-//    {
-//        for (int rowIt = 0; rowIt < this->rows; rowIt++)
-//        {
-//            auto& pixel = this->at<uchar>(rowIt, colIt);
-//            pixel = histStretch(pixel, minMax.first, minMax.second, wmin, wmax);
-//        }
-//    }
-//}
 
 
 cv::Mat gammaCorrection(cv::Mat& input, const double gamma)
@@ -126,7 +113,7 @@ cv::Mat histogramStreching(cv::Mat& input)
 }
 
 
-void calc(Mode modus, double gamma = 0)
+void calc(Mode modus, double gamma = 0, QBarSeries* chart = nullptr)
 {
     qDebug() << modus;
     auto histogram = makeHist(A);
@@ -134,6 +121,7 @@ void calc(Mode modus, double gamma = 0)
     auto cumHistogram = makeCumulativeHist(normHistogram);
 
     std::string title;
+    QBarSet *set = new QBarSet("Grayval");
 
 
 
@@ -153,6 +141,13 @@ void calc(Mode modus, double gamma = 0)
         title = "Gamma Image";
         break;
     }
+    auto newHist = makeHist(Result);
+    for(uint16_t i=0; i<newHist.size(); ++i)
+    {
+        set->insert(i, newHist[i]);
+    }
+    chart->clear();
+    chart->append(set);
     cv::namedWindow("Display Image", cv::WINDOW_AUTOSIZE );
     cv::imshow("Display Image", A);
     cv::imshow(title, Result);
@@ -181,16 +176,22 @@ int main(int32_t argc, char** argv)
 //    cv::imshow("Gamma Image", C);
 //    cv::imshow("equalizeHist Image", D);
 
+    auto histogram = makeHist(A);
     QApplication app(argc, argv);
-//    QBarSet *set0 = new QBarSet("Jane");
-//    *set0 << 1 << 2 << 3 << 4 << 5 << 6;
-//    QBarSeries *series = new QBarSeries();
-//    series->append(set0);
+    QBarSet *set0 = new QBarSet("Grayval");
+    for(int i=0; i< histogram.size(); ++i)
+        set0->insert(i, histogram[i]);
+    QBarSeries *series = new QBarSeries();
+    series->append(set0);
 
-//    QChart *chart = new QChart();
-//    chart->addSeries(series);
-//    chart->setTitle("Simple barchart example");
-//    chart->setAnimationOptions(QChart::SeriesAnimations);
+    QChart *chart = new QChart();
+    chart->addSeries(series);
+    chart->setTitle("Orginal Image");
+    chart->setAnimationOptions(QChart::SeriesAnimations);
+    QChartView *chartView = new QChartView(chart);
+    chartView->setRenderHint(QPainter::Antialiasing);
+    chartView->show();
+
     QWidget wid;
     QComboBox* combobox = new QComboBox();
     combobox->addItem("Histogramm Stretching");
@@ -203,7 +204,7 @@ int main(int32_t argc, char** argv)
     wid.setLayout(layout);
     wid.show();
 
-    QObject::connect(button, &QPushButton::clicked, [combobox](){calc((Mode)combobox->currentIndex(), 5);});
+    QObject::connect(button, &QPushButton::clicked, [combobox, series](){calc((Mode)combobox->currentIndex(), 5, series);});
     //cv::waitKey(0);
     //return 0;
     return app.exec();
