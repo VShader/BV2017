@@ -34,81 +34,60 @@ int main()
     auto A = cv::imread("E:\\FH-Aachen\\5.\ Semerster\\Bildverarbeitung\\BV_Bilder\\Aufgabe5.jpg");
     auto Orginal = cv::imread("E:\\FH-Aachen\\5.\ Semerster\\Bildverarbeitung\\BV_Bilder\\Aufgabe5-Orginal.jpg");
 
-//    cv::cvtColor(A, A, CV_BGR2GRAY);
-//    cv::cvtColor(Orginal, Orginal, CV_BGR2GRAY);
+
+    A = shrink_image(A);
+    Orginal = shrink_image(Orginal);
+    cv::namedWindow("Display Image", cv::WINDOW_AUTOSIZE );
+    cv::imshow("Display Image", A);
+    cv::imshow("Orginal Image", Orginal);
+
+    vector<KeyPoint> orginalKeypoints, rotatedKeypoints;
+    Ptr<ORB> orb = ORB::create();
+
+    std::vector<KeyPoint> keypoints_1, keypoints_2;
+    Mat descriptors_1, descriptors_2;
+
+    orb->detectAndCompute( Orginal, Mat(), keypoints_1, descriptors_1 );
+    orb->detectAndCompute( A, Mat(), keypoints_2, descriptors_2 );
 
 
-//    Mat dstA, dstB;
-//    dstA = Mat::zeros( A.size(), CV_32FC1 );
-//    dstB = Mat::zeros( Orginal.size(), CV_32FC1 );
-//    int blockSize = 2;
-//    int apertureSize = 3;
-//    double k = 0.04;
-//    cornerHarris( A, dstA, blockSize, apertureSize, k, BORDER_DEFAULT );
-//    cornerHarris( Orginal, dstB, blockSize, apertureSize, k, BORDER_DEFAULT );
-//    //auto Trans = cv::getAffineTransform(dstA, dstB);
-//    cv::imshow("asd", dstB);
+    vector<DMatch> inliner_matches;
+    BFMatcher matcher(NORM_L2);
+    //Ptr<DescriptorMatcher> matcher = DescriptorMatcher::create("BruteForce-Hamming");
+    //matcher->knnMatch(orginalKeypoints, rotatedKeypoints, inliner_matches, 2);
+    matcher.match(descriptors_1, descriptors_2, inliner_matches);
 
-//    //cv::warpAffine(A, A, Trans);
-
-//    A = shrink_image(A);
-//    Orginal = shrink_image(Orginal);
-//    cv::namedWindow("Display Image", cv::WINDOW_AUTOSIZE );
-//    cv::imshow("Display Image", A);
-//    cv::imshow("Orginal Image", Orginal);
-    Mat img1 = imread("E:\\FH-Aachen\\5.\ Semerster\\Bildverarbeitung\\BV_Bilder\\Aufgabe5.jpg", IMREAD_GRAYSCALE);
-    Mat img2 = imread("E:\\FH-Aachen\\5.\ Semerster\\Bildverarbeitung\\BV_Bilder\\Aufgabe5-Orginal.jpg", IMREAD_GRAYSCALE);
-    Mat homography;
-    homography.convertTo(homography, CV_64FC1);
-    FileStorage fs("../data/H1to3p.xml", FileStorage::READ);
-    fs.getFirstTopLevelNode() >> homography;
-    vector<KeyPoint> kpts1, kpts2;
-    Mat desc1, desc2;
-    Ptr<AKAZE> akaze = AKAZE::create();
-    akaze->detectAndCompute(img1, noArray(), kpts1, desc1);
-    akaze->detectAndCompute(img2, noArray(), kpts2, desc2);
-    BFMatcher matcher(NORM_HAMMING);
-    vector< vector<DMatch> > nn_matches;
-    matcher.knnMatch(desc1, desc2, nn_matches, 2);
-    vector<KeyPoint> matched1, matched2, inliers1, inliers2;
-    vector<DMatch> good_matches;
-    for(size_t i = 0; i < nn_matches.size(); i++) {
-        DMatch first = nn_matches[i][0];
-        float dist1 = nn_matches[i][0].distance;
-        float dist2 = nn_matches[i][1].distance;
-        if(dist1 < nn_match_ratio * dist2) {
-            matched1.push_back(kpts1[first.queryIdx]);
-            matched2.push_back(kpts2[first.trainIdx]);
-        }
+    // sort matches
+    std::map<float, cv::DMatch&> distanceMap;
+    for(auto& match : inliner_matches)
+    {
+        distanceMap.insert(std::make_pair(match.distance, std::ref(match)));
     }
-    for(unsigned i = 0; i < matched1.size(); i++) {
-        Mat col = Mat::ones(3, 1, CV_64FC1);
-        col.at<double>(0) = matched1[i].pt.x;
-        col.at<double>(1) = matched1[i].pt.y;
-        col = homography * col;
-        col /= col.at<double>(2);
-        double dist = sqrt( pow(col.at<double>(0) - matched2[i].pt.x, 2) +
-                            pow(col.at<double>(1) - matched2[i].pt.y, 2));
-        if(dist < inlier_threshold) {
-            int new_i = static_cast<int>(inliers1.size());
-            inliers1.push_back(matched1[i]);
-            inliers2.push_back(matched2[i]);
-            good_matches.push_back(DMatch(new_i, new_i, 0));
-        }
+
+    cout << inliner_matches.begin()->distance << " " << (--inliner_matches.end())->distance << endl;
+    cout << distanceMap.begin()->first << " " << (--distanceMap.end())->first;
+
+    std::array<cv::Point2f, 4> orginalQuad;
+    std::array<cv::Point2f, 4> rotatedQuad;
+    auto itMap = distanceMap.begin();
+    auto itOrginal = orginalQuad.begin();
+    auto itRotated = rotatedQuad.begin();
+    for(uint8_t count = 0; count < 4; ++count)
+    {
+        *itOrginal = keypoints_1[itMap->second.queryIdx].pt;
+        *itRotated = keypoints_2[itMap->second.trainIdx].pt;
+        ++itMap;
+        ++itOrginal;
+        ++itRotated;
     }
-    Mat res;
-    drawMatches(img1, inliers1, img2, inliers2, good_matches, res);
-    imwrite("res.png", res);
-    double inlier_ratio = inliers1.size() * 1.0 / matched1.size();
-    cout << "A-KAZE Matching Results" << endl;
-    cout << "*******************************" << endl;
-    cout << "# Keypoints 1:                        \t" << kpts1.size() << endl;
-    cout << "# Keypoints 2:                        \t" << kpts2.size() << endl;
-    cout << "# Matches:                            \t" << matched1.size() << endl;
-    cout << "# Inliers:                            \t" << inliers1.size() << endl;
-    cout << "# Inliers Ratio:                      \t" << inlier_ratio << endl;
-    cout << endl;
-    return 0;
+
+
+    cv::Mat Result;
+    auto lambda = getAffineTransform(rotatedQuad.data(), orginalQuad.data());
+    warpAffine(A, Result, lambda, A.size());
+
+    cv::imshow("Result", Result);
+
 
     cv::waitKey(0);
     return 0;
